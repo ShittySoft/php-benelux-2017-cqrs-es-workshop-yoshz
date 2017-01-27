@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Building\Domain\Aggregate;
 
+use Building\Domain\DomainEvent\BuildingWasCheckedIn;
+use Building\Domain\DomainEvent\BuildingWasCheckedOut;
 use Building\Domain\DomainEvent\NewBuildingWasRegistered;
 use Prooph\EventSourcing\AggregateRoot;
 use Rhumsaa\Uuid\Uuid;
@@ -19,6 +21,11 @@ final class Building extends AggregateRoot
      * @var string
      */
     private $name;
+
+    /**
+     * @var array
+     */
+    private $users = [];
 
     public static function new(string $name) : self
     {
@@ -36,18 +43,42 @@ final class Building extends AggregateRoot
 
     public function checkInUser(string $username)
     {
-        // @TODO to be implemented
+        $this->recordThat(BuildingWasCheckedIn::occur(
+            (string) $this->uuid,
+            [
+                'username' => $username
+            ]
+        ));
     }
 
     public function checkOutUser(string $username)
     {
-        // @TODO to be implemented
+        $this->recordThat(BuildingWasCheckedOut::occur(
+            (string) $this->uuid,
+            [
+                'username' => $username
+            ]
+        ));
     }
 
     public function whenNewBuildingWasRegistered(NewBuildingWasRegistered $event)
     {
         $this->uuid = $event->uuid();
         $this->name = $event->name();
+    }
+
+    public function whenBuildingWasCheckedIn(BuildingWasCheckedIn $event)
+    {
+        if (!in_array($event->username(), $this->users)) {
+            $this->users[] = $event->username();
+        }
+    }
+
+    public function whenBuildingWasCheckedOut(BuildingWasCheckedOut $event)
+    {
+        if (($key = array_search($event->username(), $this->users)) !== false) {
+            unset($this->users[$key]);
+        }
     }
 
     /**
@@ -64,5 +95,13 @@ final class Building extends AggregateRoot
     public function id() : string
     {
         return $this->aggregateId();
+    }
+
+    /**
+     * @return array
+     */
+    public function users(): array
+    {
+        return $this->users;
     }
 }

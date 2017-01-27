@@ -14,3 +14,10 @@
 
     <button>CheckOut</button>
 </form>
+
+<h2>Checked in users</h2>
+<ul>
+<?php foreach ($building->users() as $username): ?>
+    <li><?= $username ?></li>
+<?php endforeach; ?>
+</ul>

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Building\App;
 
+use Building\Domain\Aggregate\Building;
 use Building\Domain\Command;
+use Building\Domain\Repository\BuildingRepositoryInterface;
 use Prooph\ServiceBus\CommandBus;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -54,8 +56,10 @@ call_user_func(function () {
         return $response->withAddedHeader('Location', '/');
     });
 
-    $app->get('/building/{buildingId}', function (Request $request, Response $response) : Response {
+    $app->get('/building/{buildingId}', function (Request $request, Response $response) use ($sm) : Response {
+        $buildings = $sm->get(BuildingRepositoryInterface::class);
         $buildingId = Uuid::fromString($request->getAttribute('buildingId'));
+        $building = $buildings->get($buildingId);
 
         ob_start();
         require __DIR__ . '/../template/building.php';
@@ -67,11 +71,19 @@ call_user_func(function () {
     });
 
     $app->post('/checkin/{buildingId}', function (Request $request, Response $response) use ($sm) : Response {
+        $buildingId = $request->getAttribute('buildingId');
+        $commandBus = $sm->get(CommandBus::class);
+        $commandBus->dispatch(new Command\CheckInBuilding(Uuid::fromString($buildingId), $request->getParsedBody()['username']));
 
+        return $response->withAddedHeader('Location', '/building/' . $buildingId);
     });
 
     $app->post('/checkout/{buildingId}', function (Request $request, Response $response) use ($sm) : Response {
+        $buildingId = $request->getAttribute('buildingId');
+        $commandBus = $sm->get(CommandBus::class);
+        $commandBus->dispatch(new Command\CheckOutBuilding(Uuid::fromString($buildingId), $request->getParsedBody()['username']));
 
+        return $response->withAddedHeader('Location', '/building/' . $buildingId);
     });
 
     $app->pipeDispatchMiddleware();
